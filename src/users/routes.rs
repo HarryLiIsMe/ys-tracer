@@ -1,30 +1,44 @@
 use super::dao::IUser;
-use super::user::{UserAddress, Email};
+use super::user::{UserAddress};
 use crate::api::ApiResult;
 use crate::state::AppState;
-use ed25519_dalek::{ed25519, PublicKey, SignatureError, Verifier};
-
-use mailgun_v3::email::{Message,EmailAddress , MessageBody};
-use mailgun_v3::Credentials;
-
+use ed25519_dalek::{ed25519, ExpandedSecretKey, PublicKey, SignatureError, Signature, Verifier,  SecretKey};
 use {
     ruc::*,
     attohttpc,
     base64,
     serde_json,
 };
+use hex;
 use actix_web::{get, post, web, Responder};
 use futures::future::err;
+use hex::ToHex;
+use ring::hmac::verify;
+use ring::test::from_hex;
+use serde::Deserialize;
 use crate::users::user::QueryAll;
 
+
 async fn verify_sign(form: &UserAddress, state: &AppState) -> Result<()> {
-    match  PublicKey::from_bytes(&form.anonymous_address.as_bytes())
+
+   let decode = base64::decode_config(&form.anonymous_address, base64::URL_SAFE).unwrap();//from_hex(&form.anonymous_address).unwrap();
+
+    match  PublicKey::from_bytes(&decode)
     {
         Ok(public_key) => {
-            let sign = ed25519::Signature::from_bytes(form.signature.as_bytes()).unwrap();
-            return  public_key.verify(form.signature_data.as_bytes(), &sign).c(d!());
+         /*   let key = "eeWQehLAMlJySIS-nEzaU81DKP1Jn1om30lxLlK82H4=";
+            let decode = base64::decode_config(key, base64::URL_SAFE).unwrap();
+            let mut secret_key = SecretKey::from_bytes(&decode).unwrap();
+            let end_key = ExpandedSecretKey::from(&secret_key);
+            let sign2 = end_key.sign(&form.signature_data.as_bytes(), &public_key);
+            println!("sign2 = {:?}", hex::encode(sign2));*/
+
+            let sign_hex = from_hex(&form.signature).unwrap();
+            let sign = ed25519::Signature::from_bytes(&sign_hex).unwrap();
+            return  public_key.verify(&form.signature_data.as_bytes(), &sign).c(d!());
         },
         Err(e) => {
+            error!("verify fail");
             return Err(eg!("verify fail{:?}",e));
         }
     }
@@ -65,6 +79,7 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
         print!("Signature verification failed, Err = {:?}",e);
         return ApiResult::new().code(400).with_msg("Signature verification failed");
     }
+    println!("Signature verification sucess");
 
     let url = state.get_ref().config.request_rpc.clone() + &*form.transaction_hash.clone();
     let resp = attohttpc::get(&url).send().c(d!()).unwrap();
@@ -89,11 +104,14 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
                         .get(0).c(d!()).unwrap_or(&serde_json::Value::Null  )
                         .get("TransferAsset").c(d!()).unwrap_or(&serde_json::Value::Null  )
                         .get("body_signatures").c(d!()).unwrap_or(&serde_json::Value::Null  );
+
                     if body_signatures.is_array() {
                         let vec_json =  body_signatures.as_array().c(d!()).unwrap();
                         let mut b_find = false;
                         for json_address in vec_json.iter(){
-                            let data_address = json_address.get(0).c(d!()).unwrap_or(&serde_json::Value::Null  )
+
+
+                            let data_address = json_address
                                 .get("address").c(d!()).unwrap_or(&serde_json::Value::Null  )
                                 .get("key").c(d!()).unwrap_or(&serde_json::Value::Null  );
 
@@ -101,6 +119,7 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
                             if form.anonymous_address == address_str
                             {
                                 b_find = true;
+                                println!("tx Address success");
                                 break;
                             }
                         }
@@ -138,7 +157,7 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
             }
         }
         if !b_find{
-            match state.get_ref().adress_add(&form.share_address, "1").await {
+            match state.get_ref().adress_add(&form.share_address, "1", &form.post_email).await {
                 Ok(_) => {}
                 Err(e) => {
                     return ApiResult::new().code(400).with_msg(e.to_string());
@@ -164,7 +183,7 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
             print!("no find address");
         }
     }
-    match state.get_ref().adress_add(&form.evm_anonymous_address, "1").await {
+    match state.get_ref().adress_add(&form.evm_anonymous_address, "1", &form.post_email).await {
         Ok(res) => {
             ApiResult::new().with_msg("ok").with_data(res)
         }
@@ -174,62 +193,8 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
     }
 }
 
-#[post("/email")]
-async fn post_email(form: web::Json<Email>, state: AppState) -> impl Responder {
-
-    let form = form.into_inner();
-    let domain = state.get_ref().config.mail_domain.as_str();
-    let key = state.get_ref().config.mail_key.as_str();
-
-    let msg = Message {
-        to: vec![EmailAddress::address(form.email)],
-        body: MessageBody::Text(form.url.parse().unwrap()),
-        subject: String::from("Your Url"),
-        ..Default::default()
-    };
-    let sender = EmailAddress::address(state.get_ref().config.mail_post.clone());
-    let creds = Credentials::new(
-        key,
-        domain,
-    );
-
-    match mailgun_v3::email::send_email(&creds, &sender, msg) {
-        Ok(res) => {
-            return ApiResult::new().code(200).with_msg("Email sent successfully!");
-        }
-        Err(e) => {
-            error!("Could not send email: {:?}", e);
-            return ApiResult::new().code(200).with_data(e.to_string());
-        }
-    }
-
-/*
-    let email = Message::builder()
-        .from(state.get_ref().config.mail_post.parse().unwrap())  // 发件人
-        .to(form.email.parse().unwrap())        // 收件人
-        .subject("Your Url")  // 主题
-        .body(form.url)          // 邮件内容
-        .unwrap();
-    let creds = Credentials::new(state.get_ref().config.mail_post.clone(), state.get_ref().config.mail_password.clone());
-    let mailer = SmtpTransport::relay(state.get_ref().config.mail_smtp.as_str())
-        .unwrap()
-        .credentials(creds)
-        .build();
-
-    match mailer.send(&email) {
-        Ok(_) => {
-            return ApiResult::new().code(200).with_msg("Email sent successfully!");
-        }
-        Err(e) => {
-                error!("Could not send email: {:?}", e);
-                return ApiResult::new().code(200).with_data(e.to_string());
-            }
-    }*/
-}
-
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(user_address);
     cfg.service(get_address);
-    cfg.service(post_email);
     cfg.service(get_address_all);
 }

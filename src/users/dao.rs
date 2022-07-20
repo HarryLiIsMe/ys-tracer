@@ -3,15 +3,16 @@ use crate::state::AppStateRaw;
 
 #[async_trait]
 pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
-    async fn adress_add(&self, address: &str, experience: &str) -> sqlx::Result<u64>
+    async fn adress_add(&self, address: &str, experience: &str, post_email :&str) -> sqlx::Result<u64>
     {
         sqlx::query!(
             r#"
-        INSERT INTO user_address2 (address, experience)
-       VALUES ($1 ,$2)
+        INSERT INTO user_address2 (address, experience, post_email)
+       VALUES ($1 ,$2, $3)
                 "#,
             address,
-            experience
+            experience,
+            post_email
         )
             .execute(&self.sql)
             .await
@@ -21,12 +22,23 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
    async fn adress_query(&self, address: &str) -> sqlx::Result<AddressExperience> {
 
         let sql = format!(
-            "SELECT address, experience
+            "SELECT address, experience, post_email
             FROM user_address2
             where address = '{}';",
             address
         );
         sqlx::query_as::<_, AddressExperience>(&sql).bind(address).fetch_one(&self.sql).await
+    }
+
+    async fn email_query(&self, email: &str) -> sqlx::Result<AddressExperience> {
+
+        let sql = format!(
+            "SELECT address, experience, post_email
+            FROM user_address2
+            where post_email = '{}';",
+            email
+        );
+        sqlx::query_as::<_, AddressExperience>(&sql).bind(email).fetch_one(&self.sql).await
     }
 
     async fn adress_all(&self, limit: i16, offset:i16) -> sqlx::Result<Vec<AddressExperience>> {

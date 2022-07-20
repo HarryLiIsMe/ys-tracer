@@ -3,7 +3,8 @@
 
 create table user_address2 (
         address varchar(65) not null,
-        experience varchar(10) UNIQUE not null
+        experience varchar(10) ,
+        post_email varchar(65)
 );
 
 -- COMMENT ON COLUMN "users"."pass" IS 'passwd hash'

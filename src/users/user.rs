@@ -9,6 +9,7 @@ pub struct UserAddress {
     pub transaction_hash:String,
     pub signature:String,
     pub signature_data:String,
+    pub post_email: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,5 +28,6 @@ pub struct QueryAll {
 pub struct AddressExperience{
     pub address:String,
     pub experience: String,
+    pub post_email: String,
 }
 
