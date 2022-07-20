@@ -53,7 +53,7 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn adress_all(&self, limit: i16, offset:i16) -> sqlx::Result<Vec<AddressExperience>> {
 
         let sql = format!(
-            "SELECT address, experience
+            "SELECT address, experience, post_email
             FROM user_address2 order by experience desc
             limit {} offset {} ;",
             limit, offset
