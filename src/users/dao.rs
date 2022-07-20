@@ -5,7 +5,7 @@ use crate::state::AppStateRaw;
 pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
     async fn adress_add(&self, address: &str, experience: &str, post_email :&str) -> sqlx::Result<u64>
     {
-        sqlx::query!(
+        /*sqlx::query!(
             r#"
         INSERT INTO user_address2 (address, experience, post_email)
        VALUES ($1 ,$2, $3)
@@ -16,7 +16,16 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
         )
             .execute(&self.sql)
             .await
-            .map(|d| d.rows_affected())
+            .map(|d| d.rows_affected())*/
+
+        let sql = format!(
+            "  INSERT INTO user_address2 (address, experience, post_email)
+       VALUES ('{}' ,'{}', '{}');",
+            address,
+            experience,
+            post_email
+        );
+        sqlx::query(&sql).bind(address).execute(&self.sql).await.map(|d| d.rows_affected())
     }
 
    async fn adress_query(&self, address: &str) -> sqlx::Result<AddressExperience> {
