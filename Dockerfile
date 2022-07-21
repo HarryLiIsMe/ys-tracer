@@ -1,8 +1,6 @@
 FROM clux/muslrust
 WORKDIR /volume
-# silly docker copy about directory
-# sh -c 'cd .. && docker build --network host -t demo -f actixweb-sqlx-jwt/Dockerfile .'
-COPY actixweb-sqlx-jwt/ /volume/
+COPY . /volume/
 RUN ls -lah && RUSTFLAGS='-C target-feature=+crt-static' cargo build --release && ls -lah target/*
 
 FROM alpine:latest  
