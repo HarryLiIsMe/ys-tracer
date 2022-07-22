@@ -40,7 +40,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::FormConfig::default().error_handler(api::json_error_handler))
             .wrap(middleware::Compress::default())
             .wrap(middleware::Logger::default())
-            .wrap(Cors::default().send_wildcard())
+            //.wrap(Cors::default().send_wildcard())
+            .wrap(Cors::permissive())
             .default_service(web::route().to(api::notfound))
             .service(web::scope("/user").configure(users::routes::init))
             .service(

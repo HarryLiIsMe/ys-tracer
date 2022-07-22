@@ -207,8 +207,14 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
     }
 }
 
+#[get("/version")]
+async fn get_address_version(state: AppState) -> impl Responder {
+    return  ApiResult::new().code(200).with_data("1.0");
+}
+
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(user_address);
     cfg.service(get_address);
     cfg.service(get_address_all);
+    cfg.service(get_address_version);
 }
