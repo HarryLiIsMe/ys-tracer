@@ -9,8 +9,10 @@ extern crate sqlx;
 #[macro_use]
 extern crate serde;
 
+use std::borrow::Borrow;
+use actix_cors::Cors;
 use actix_files::Files;
-use actix_web::{middleware, web, App, HttpServer};
+use actix_web::{middleware, web, App, HttpServer, get, http,  HttpRequest, HttpResponse};
 
 pub mod api;
 pub mod config;
@@ -28,7 +30,6 @@ async fn main() -> std::io::Result<()> {
     let (_handle, opt) = Opts::parse_from_args();
     let state = Config::parse_from_file(&opt.config).into_state().await;
     let state2 = state.clone();
-
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(state.clone()))
@@ -39,6 +40,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::FormConfig::default().error_handler(api::json_error_handler))
             .wrap(middleware::Compress::default())
             .wrap(middleware::Logger::default())
+            .wrap(Cors::default().supports_credentials())
             .default_service(web::route().to(api::notfound))
             .service(web::scope("/user").configure(users::routes::init))
             .service(

@@ -143,6 +143,13 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
         match state.get_ref().adress_query(&form.share_address.clone()).await {
             Ok(addex) => {
                 b_find = true;
+                let post_email:String = addex.post_email.parse::<String>().unwrap();
+                if post_email.is_empty() && !form.post_email.is_empty(){
+                    if let Err(e) = state.get_ref().mail_update(&form.share_address.clone(), &form.post_email.clone()).await {
+                        return  ApiResult::new().code(400).with_msg(e.to_string());
+                    }
+                }
+
                 let mut addres :i16 = addex.experience.parse::<i16>().unwrap();
                 addres = addres + 1;
                 match state.get_ref().adress_update(&form.share_address.clone(), &addres.to_string()).await {
@@ -168,9 +175,16 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
 
     match state.get_ref().adress_query(&form.evm_anonymous_address.clone()).await {
         Ok(addex) => {
-            let mut addres :i16 = addex.experience.parse::<i16>().unwrap();
-            addres = addres + 1;
-            match state.get_ref().adress_update(&form.evm_anonymous_address.clone(), &addres.to_string()).await {
+            let post_email:String = addex.post_email.parse::<String>().unwrap();
+            if post_email.is_empty() && !form.post_email.is_empty(){
+                if let Err(e) = state.get_ref().mail_update(&form.evm_anonymous_address.clone(), &form.post_email.clone()).await {
+                    return  ApiResult::new().code(400).with_msg(e.to_string());
+                }
+            }
+
+            let mut experience :i16 = addex.experience.parse::<i16>().unwrap();
+            experience = experience + 1;
+            match state.get_ref().adress_update(&form.evm_anonymous_address.clone(), &experience.to_string()).await {
                 Ok(res) => {
                    return ApiResult::new().with_msg("ok").with_data(res);
                 }
