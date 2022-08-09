@@ -61,6 +61,14 @@ pub trait IUser: std::ops::Deref<Target = AppStateRaw> {
         sqlx::query_as(&sql).bind(1).fetch_all(&self.sql).await
     }
 
+    async fn adress_px_select(&self) -> sqlx::Result<Vec<AddressExperience>> {
+        let sql = format!(
+            "SELECT address, experience, post_email
+            FROM user_address2 order by experience desc;"
+        );
+        sqlx::query_as(&sql).bind(1).fetch_all(&self.sql).await
+    }
+
     async fn adress_update(&self, address: &str, experience: &str) ->sqlx::Result<u64> {
 
         let sql = format!(

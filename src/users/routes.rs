@@ -1,5 +1,5 @@
 use super::dao::IUser;
-use super::user::{UserAddress};
+use super::user::{UserAddress, JumpAddress, AddressExperience};
 use crate::api::ApiResult;
 use crate::state::AppState;
 use ed25519_dalek::{ed25519, ExpandedSecretKey, PublicKey, SignatureError, Signature, Verifier,  SecretKey};
@@ -68,6 +68,53 @@ async fn get_address_all(form: web::Json<QueryAll>, state: AppState) -> impl Res
         Err(_) => {
             println!("no found file");
             return  ApiResult::new().code(400).with_msg("no found file");
+        }
+    }
+}
+
+#[get("/addressjump")]
+async fn get_address_jump(form: web::Json<JumpAddress>, state: AppState) -> impl Responder {
+    let form = form.into_inner();
+
+    match state.get_ref().adress_px_select().await {
+        Ok(addex) => {
+            let mut page = 0;
+            let mut index = 1;
+            for iter in addex.iter()
+            {
+                let address:String = iter.address.parse::<String>().unwrap();
+                if address == form.address {
+                    let mut number = page * form.limit;
+                    let mut vec:Vec<AddressExperience> = Vec::new();
+                    for i in number..number + form.limit{
+                        if i < addex.len() as i16{
+                            vec.push(addex[i as usize].clone());
+                        }
+                    }
+                    let json_str: String = serde_json::to_string(&vec).unwrap();
+                    let object:serde_json::Value = serde_json::from_str(json_str.as_str()).unwrap();
+
+                    let mut object_tx = serde_json::json!({});
+                    object_tx.as_object_mut().unwrap().insert("page".parse().unwrap(), serde_json::Value::String(page.to_string()));
+                    object_tx.as_object_mut().unwrap().insert("total".parse().unwrap(), serde_json::Value::String(addex.len().to_string()));
+                    object_tx.as_object_mut().unwrap().insert("result".parse().unwrap(), object);
+
+                    return  ApiResult::new().with_msg("ok").with_data(object_tx);
+                }
+                if index == form.limit{
+                    index = 1;
+                    page = page + 1;
+                }
+
+                else {
+                    index = index + 1;
+                }
+            }
+            return  ApiResult::new().code(400).with_msg("no found address");
+        },
+        Err(_) => {
+            println!("no found address");
+            return  ApiResult::new().code(400).with_msg("no found address");
         }
     }
 }
@@ -209,7 +256,11 @@ async fn user_address(form: web::Json<UserAddress>, state: AppState) -> impl Res
 
 #[get("/version")]
 async fn get_address_version(state: AppState) -> impl Responder {
-    return  ApiResult::new().code(200).with_data("1.0");
+    let resp = attohttpc::get("https://tracer.ys.finance/user/version").send().c(d!()).unwrap();
+    if resp.is_success() {
+        return  ApiResult::new().code(200).with_data("1.0");
+    }
+    return  ApiResult::new().code(200).with_data("erro");
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
@@ -217,4 +268,6 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_address);
     cfg.service(get_address_all);
     cfg.service(get_address_version);
+    cfg.service(get_address_jump);
+
 }

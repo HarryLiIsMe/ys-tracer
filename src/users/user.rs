@@ -24,10 +24,21 @@ pub struct QueryAll {
     pub offset:i16,
 }
 
-#[derive(FromRow, Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct JumpAddress {
+    pub address: String,
+    pub limit: i16,
+}
+
+#[derive(FromRow, Serialize, Clone, Deserialize, Debug)]
 pub struct AddressExperience{
     pub address:String,
     pub experience: String,
     pub post_email: String,
 }
 
+#[derive(FromRow, Serialize, Deserialize, Debug)]
+pub struct JumpAddressPx{
+    pub px:String,
+    pub address:String,
+}
