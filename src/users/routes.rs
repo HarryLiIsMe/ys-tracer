@@ -59,8 +59,8 @@ async fn get_address(address: web::Path<String>, state: AppState) -> impl Respon
 }
 
 #[get("/addressall")]
-async fn get_address_all(form: web::Json<QueryAll>, state: AppState) -> impl Responder {
-    let form = form.into_inner();
+async fn get_address_all(info: web::Query<QueryAll> ,state: AppState) -> impl Responder {
+    let form = info.into_inner();
     match state.get_ref().adress_all(form.limit, form.offset).await {
         Ok(addex) => {
             ApiResult::new().with_msg("ok").with_data(addex)
@@ -73,7 +73,7 @@ async fn get_address_all(form: web::Json<QueryAll>, state: AppState) -> impl Res
 }
 
 #[get("/addressjump")]
-async fn get_address_jump(form: web::Json<JumpAddress>, state: AppState) -> impl Responder {
+async fn get_address_jump(form: web::Query<JumpAddress>, state: AppState) -> impl Responder {
     let form = form.into_inner();
 
     match state.get_ref().adress_px_select().await {
