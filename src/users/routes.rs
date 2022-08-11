@@ -61,6 +61,29 @@ async fn get_address(address: web::Path<String>, state: AppState) -> impl Respon
 #[get("/addressall")]
 async fn get_address_all(info: web::Query<QueryAll> ,state: AppState) -> impl Responder {
     let form = info.into_inner();
+    match state.get_ref().adress_px_select().await {
+        Ok(addex) => {
+            let mut vec:Vec<AddressExperience> = Vec::new();
+            let mut object_tx = serde_json::json!({});
+            for i in form.offset..form.offset + form.limit
+            {
+                if i >= addex.len() as i16{
+                    break;
+                }
+                vec.push(addex[i as usize].clone());
+                let json_str: String = serde_json::to_string(&vec).unwrap();
+                let object:serde_json::Value = serde_json::from_str(json_str.as_str()).unwrap();
+                object_tx.as_object_mut().unwrap().insert("total".parse().unwrap(), serde_json::Value::String(addex.len().to_string()));
+                object_tx.as_object_mut().unwrap().insert("result".parse().unwrap(), object);
+            }
+            return  ApiResult::new().with_msg("ok").with_data(object_tx);
+        },
+        Err(_) => {
+            println!("no found address");
+            return  ApiResult::new().code(400).with_msg("no found address");
+        }
+    }
+    /*
     match state.get_ref().adress_all(form.limit, form.offset).await {
         Ok(addex) => {
             ApiResult::new().with_msg("ok").with_data(addex)
@@ -69,7 +92,7 @@ async fn get_address_all(info: web::Query<QueryAll> ,state: AppState) -> impl Re
             println!("no found file");
             return  ApiResult::new().code(400).with_msg("no found file");
         }
-    }
+    }*/
 }
 
 #[get("/addressjump")]
