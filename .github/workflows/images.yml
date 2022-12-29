@@ -36,8 +36,8 @@ jobs:
         with:
           images: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.AWS_ECR_REGISTRY }}
           tags: |
-            type=raw,value={{branch}}-{{sha}}-{{date 'x'}}
-            type=raw,value=latest 
+            type=raw,value=ys-tracer-{{branch}}-{{sha}}-{{date 'x'}}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
@@ -47,3 +47,6 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Trigger Fluxcd webhook
+        run: curl -X POST ${{ secrets.WEBHOOK_URL }}
